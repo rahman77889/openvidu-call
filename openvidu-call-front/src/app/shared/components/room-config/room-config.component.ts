@@ -316,8 +316,11 @@ export class RoomConfigComponent implements OnInit, OnDestroy {
 	}
 
 	private initwebcamPublisher() {
-		const videoSource =  this.hasVideoDevices ? undefined : false;
-		const audioSource = this.hasAudioDevices ? undefined : false;
+		const micStorageDevice = this.micSelected?.device || undefined;
+		const camStorageDevice = this.camSelected?.device || undefined;
+
+		const videoSource =  this.hasVideoDevices ? camStorageDevice : false;
+		const audioSource = this.hasAudioDevices ? micStorageDevice : false;
 		const publishAudio = this.hasAudioDevices ? this.isAudioActive : false;
 		const publishVideo = this.hasVideoDevices ? this.isVideoActive : false;
 		const mirror = this.camSelected && this.camSelected.type === CameraType.FRONT;

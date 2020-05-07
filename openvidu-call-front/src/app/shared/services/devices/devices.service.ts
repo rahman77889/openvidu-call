@@ -4,11 +4,15 @@ import { IDevice, CameraType } from '../../types/device-type';
 import { ILogger } from '../../types/logger-type';
 import { LoggerService } from '../logger/logger.service';
 import { UtilsService } from '../utils/utils.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable({
 	providedIn: 'root'
 })
 export class DevicesService {
+	private readonly VIDEO_DEVICE = 'openviduCallVideoDevice';
+	private readonly AUDIO_DEVICE = 'openviduCallAudioDevice';
+
 	private OV: OpenVidu = null;
 	private devices: Device[];
 	private cameras: IDevice[] = [];
@@ -17,7 +21,7 @@ export class DevicesService {
 	private micSelected: IDevice;
 	private log: ILogger;
 
-	constructor(private loggerSrv: LoggerService, private utilSrv: UtilsService) {
+	constructor(private loggerSrv: LoggerService, private utilSrv: UtilsService, private storageSrv: StorageService) {
 		this.log = this.loggerSrv.get('DevicesService');
 		this.OV = new OpenVidu();
 	}
@@ -45,6 +49,8 @@ export class DevicesService {
 	private initVideoDevices() {
 		const FIRST_POSITION = 0;
 		const videoDevices = this.devices.filter((device) => device.kind === 'videoinput');
+		let storageDevice = this.storageSrv.get(this.VIDEO_DEVICE);
+		storageDevice =  this.getCameraByDeviceField(storageDevice.device) ? storageDevice : undefined;
 		videoDevices.forEach((device: Device, index: number) => {
 			const myDevice: IDevice = {
 				label: device.label,
@@ -55,13 +61,13 @@ export class DevicesService {
 				// We assume front video device has 'front' in its label in Mobile devices
 				if (myDevice.label.toLowerCase().includes(CameraType.FRONT.toLowerCase())) {
 					myDevice.type = CameraType.FRONT;
-					this.camSelected = myDevice;
+					this.camSelected = storageDevice || myDevice;
 				}
 			} else {
 				// We assume first device is web camera in Browser Desktop
 				if (index === FIRST_POSITION) {
 					myDevice.type = CameraType.FRONT;
-					this.camSelected = myDevice;
+					this.camSelected = storageDevice || myDevice;
 				}
 			}
 
@@ -75,7 +81,8 @@ export class DevicesService {
 			this.log.w('No video devices found!');
 			return;
 		}
-		return this.camSelected || this.cameras[0];
+		const storageDevice = this.storageSrv.get(this.VIDEO_DEVICE);
+		return this.camSelected || storageDevice || this.cameras[0];
 	}
 
 	getMicSelected(): IDevice {
@@ -83,15 +90,18 @@ export class DevicesService {
 			this.log.w('No audio devices found!');
 			return;
 		}
-		return this.micSelected || this.microphones[0];
+		const storageDevice = this.storageSrv.get(this.AUDIO_DEVICE);
+		return this.micSelected || storageDevice || this.microphones[0];
 	}
 
 	setCamSelected(deviceField: any) {
 		this.camSelected = this.getCameraByDeviceField(deviceField);
+		this.storageSrv.set(this.VIDEO_DEVICE, this.camSelected);
 	}
 
 	setMicSelected(deviceField: any) {
 		this.micSelected = this.getMicrophoneByDeviceField(deviceField);
+		this.storageSrv.set(this.AUDIO_DEVICE, this.micSelected);
 	}
 
 	needUpdateVideoTrack(newVideoSource: string): boolean {
